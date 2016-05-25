@@ -58,11 +58,6 @@ payload = {'email': email,
 # Post the form
 req = s.post(URL_CROSSREF, data=payload, headers=headers)
 
-# Traceback (most recent call last):
-  # File "./ref2pdf.py", line 65, in <module>
-    # doi = soup.a.text
-# AttributeError: 'NoneType' object has no attribute 'text'
-
 # Parse the result
 strainer = SoupStrainer("td", attrs={"class": "resultB"})
 soup = BeautifulSoup(req.text, "lxml", parse_only=strainer)
