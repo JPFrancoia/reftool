@@ -66,8 +66,8 @@ r = soup("td", attrs={"class": "resultB"})
 try:
     doi = soup.a.text
 except Exception as e:
-    print("ref2pdf could not get the DOI from your reference."
-    print("A possible reason is an unregistered email address."
+    print("ref2pdf could not get the DOI from your reference.")
+    print("A possible reason is an unregistered email address.")
 
 print('DOI: {}'.format(doi))
 
