@@ -20,11 +20,13 @@ Example:
     Output: Link to download the article: http://cyber.sci-hub.cc/MTAuMTAzOS9jNGNjMDg1NjNh/francoia2014.pdf
 
 Usage:
-  ref2pdf.py   [options] <email> <reference>
+    ref2pdf.py   [options] ([email] <ref_or_doi> | <email> <ref_or_doi>)
 
 Options:
-  -h --help    Display help
-  -d           Will also output a link to download the artice from Sci-Hub (could be illegal, use at your own risk)
+    -h --help    Display help
+    -a           Option All, Equivalent to -bd
+    -b           Output a bibtex entry (get information about the reference)
+    -d           Output a link to download the artice from Sci-Hub (could be illegal, use at your own risk)
 """
 
 
@@ -32,62 +34,98 @@ import sys
 import requests
 from bs4 import BeautifulSoup, SoupStrainer
 from docopt import docopt
+import validators
 
 
 # Define URLs
 URL_CROSSREF = "http://www.crossref.org/SimpleTextQuery/"
 URL_SCIHUB = "http://sci-hub.cc/"
+URL_DOI_BIB = "http://dx.doi.org/"
 
 # Get the arguments
 args = docopt(help)
 email = args['<email>']
-target = args['<reference>']
+target = args['<ref_or_doi>']
 
-# Define the user agent
-headers = {'User-agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:12.0) Gecko/20100101 Firefox/21.0'}
+# If option 'all' activated, switch the other options
+if args['-a']:
+    args['-b'] = True
+    args['-d'] = True
 
-# First, get the form and start a session. This is necessary, posting directly
-# the parameters doesn't work
-s = requests.session()
-s.get(URL_CROSSREF)
 
-payload = {'email': email,
-           'command': 'Submit',
-           'freetext': target}
+# Test if the input is a doi
+if target.startswith('10.'):
+    is_doi = True
+elif validators.url(target) and '10.1' in target:
+    doi = target.split(URL_DOI_BIB)[-1]
+    is_doi = True
+else:
+    is_doi = False
 
-# Post the form
-req = s.post(URL_CROSSREF, data=payload, headers=headers)
 
-# Parse the result
-strainer = SoupStrainer("td", attrs={"class": "resultB"})
-soup = BeautifulSoup(req.text, "lxml", parse_only=strainer)
-r = soup("td", attrs={"class": "resultB"})
+# if ref_or_doi is a ref, find its DOI
+if not is_doi:
+    # Define the user agent
+    headers = {'User-agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:12.0) Gecko/20100101 Firefox/21.0'}
 
-try:
-    doi = soup.a.text
-except Exception as e:
-    print("ref2pdf could not get the DOI from your reference.")
-    print("A possible reason is an unregistered email address.")
+    # First, get the form and start a session. This is necessary, posting directly
+    # the parameters doesn't work
+    s = requests.session()
+    s.get(URL_CROSSREF)
 
-print('DOI: {}'.format(doi))
+    payload = {'email': email,
+               'command': 'Submit',
+               'freetext': target}
 
-# If option download not activated, do not request the paper from Sci-Hub
-if not args['-d']:
-    sys.exit()
+    # Post the form
+    req = s.post(URL_CROSSREF, data=payload, headers=headers)
 
-doi = doi.split("http://dx.doi.org/")[-1]
+    with open('out.html', 'w') as output:
+        output.write(req.text)
 
-# Post the form
-payload = {'sci-hub-plugin-check': '', 'request': doi}
-req = requests.post(URL_SCIHUB, data=payload, headers=headers)
+    # Parse the result
+    strainer = SoupStrainer("td", attrs={"class": "resultB"})
+    soup = BeautifulSoup(req.text, "lxml", parse_only=strainer)
+    r = soup("td", attrs={"class": "resultB"})
 
-# Past the result to get the link of the paper
-strainer = SoupStrainer("iframe", attrs={"id": "pdf"})
-soup = BeautifulSoup(req.text, "lxml", parse_only=strainer)
+    try:
+        doi = soup.a.text
+        doi = doi.split("http://dx.doi.org/")[-1]
+        print('DOI: {}\n'.format(doi))
+    except Exception as e:
+        print("ref2pdf could not get the DOI from your reference.")
+        print("A possible reason is an unregistered email address.")
+        sys.exit()
 
-link_to_pdf = soup.iframe['src']
 
-print('Link to download the article: {}'.format(link_to_pdf))
+# if option bibtex activated, request the bibtex entry
+if args['-b']:
+    headers = {"Accept": "application/x-bibtex"}
+    r = requests.get(URL_DOI_BIB + doi, headers=headers)
+
+    if "Error: DOI Not Found" in r.text:
+        print("DOI not found. Are you sure you didn't make a typo ?")
+        print("Impossible to generate a bibtex entry\n")
+    else:
+        print(r.text + "\n")
+
+    headers['Accept'] = ""
+
+
+# If option download is activated, request the paper from Sci-Hub
+if args['-d']:
+
+    # Post the form
+    payload = {'sci-hub-plugin-check': '', 'request': doi}
+    req = requests.post(URL_SCIHUB, data=payload, headers=headers)
+
+    # Past the result to get the link of the paper
+    strainer = SoupStrainer("iframe", attrs={"id": "pdf"})
+    soup = BeautifulSoup(req.text, "lxml", parse_only=strainer)
+
+    link_to_pdf = soup.iframe['src']
+
+    print('Link to download the article: {}'.format(link_to_pdf))
 
 
 if __name__ == '__main__':
