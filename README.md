@@ -1,6 +1,6 @@
-# About ref2pdf
+# About reftool
 
-ref2pdf is a simple script to return a DOI from a formatted citation.
+reftool is a simple script to return a DOI from a formatted citation.
 It can also return a direct link to download the article from Sci-Hub
 (this option could be illegal, use at your own risk).
 
@@ -13,13 +13,13 @@ on Crossref's website. The script needs the email address you used to sign up.
 ```bash
 Example:
 
-    Input: ./ref2pdf.py myemail@mydomain.com "J.-P. Francoia, R. Pascal and L. Vial, Chem. Commun., 2015, 51, 1953"
+    Input: ./reftool.py myemail@mydomain.com "J.-P. Francoia, R. Pascal and L. Vial, Chem. Commun., 2015, 51, 1953"
     Output: DOI: http://dx.doi.org/10.1039/C4CC08563A
 
-    Input: ./ref2pdf.py -d myemail@mydomain.com "J.-P. Francoia, R. Pascal and L. Vial, Chem. Commun., 2015, 51, 1953"
+    Input: ./reftool.py -d myemail@mydomain.com "J.-P. Francoia, R. Pascal and L. Vial, Chem. Commun., 2015, 51, 1953"
     Output: Link to download the article: http://cyber.sci-hub.cc/MTAuMTAzOS9jNGNjMDg1NjNh/francoia2014.pdf
 
-    Input: ./ref2pdf.py -bd http://dx.doi.org/10.1039/C4CC08563A
+    Input: ./reftool.py -bd http://dx.doi.org/10.1039/C4CC08563A
     Output:
             @article{Francoia_2015,
             doi = {10.1039/c4cc08563a},
@@ -37,7 +37,7 @@ Example:
             Link to download the article: http://cyber.sci-hub.cc/MTAuMTAzOS9jNGNjMDg1NjNh/francoia2014.pdf
 
 Usage:
-    ref2pdf.py   [options] ([email] <ref_or_doi> | <email> <ref_or_doi>)
+    reftool.py   [options] ([email] <ref_or_doi> | <email> <ref_or_doi>)
 
 Options:
     -h --help    Display help
