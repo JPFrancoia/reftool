@@ -59,6 +59,9 @@ URL_CROSSREF = "http://www.crossref.org/SimpleTextQuery/"
 URL_SCIHUB = "http://sci-hub.cc/"
 URL_DOI_BIB = "http://dx.doi.org/"
 
+# Define the user agent
+headers = {'User-agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:12.0) Gecko/20100101 Firefox/21.0'}
+
 # Get the arguments
 args = docopt(help)
 email = args['<email>']
@@ -73,6 +76,7 @@ if args['-a']:
 # Test if the input is a doi
 if target.startswith('10.'):
     is_doi = True
+    doi = target
 elif validators.url(target) and '10.1' in target:
     doi = target.split(URL_DOI_BIB)[-1]
     is_doi = True
@@ -82,8 +86,6 @@ else:
 
 # if ref_or_doi is a ref, find its DOI
 if not is_doi:
-    # Define the user agent
-    headers = {'User-agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:12.0) Gecko/20100101 Firefox/21.0'}
 
     # First, get the form and start a session. This is necessary, posting directly
     # the parameters doesn't work
@@ -141,6 +143,9 @@ if args['-d']:
     soup = BeautifulSoup(req.text, "lxml", parse_only=strainer)
 
     link_to_pdf = soup.iframe['src']
+
+    if not link_to_pdf.startswith('http:'):
+        link_to_pdf = 'http:' + link_to_pdf
 
     print('Link to download the article: {}'.format(link_to_pdf))
 
