@@ -84,6 +84,11 @@ else:
     is_doi = False
 
 
+if is_doi and not args['-b'] and not args['-d']:
+    print("Nothing to do, exiting")
+    sys.exit()
+
+
 # if ref_or_doi is a ref, find its DOI
 if not is_doi:
 
@@ -114,6 +119,7 @@ if not is_doi:
     except Exception as e:
         print("reftool could not get the DOI from your reference.")
         print("A possible reason is an unregistered email address.")
+        print("It could also be a timeout error.")
         sys.exit()
 
 
@@ -142,12 +148,18 @@ if args['-d']:
     strainer = SoupStrainer("iframe", attrs={"id": "pdf"})
     soup = BeautifulSoup(req.text, "lxml", parse_only=strainer)
 
-    link_to_pdf = soup.iframe['src']
+    try:
+        link_to_pdf = soup.iframe['src']
 
-    if not link_to_pdf.startswith('http:'):
-        link_to_pdf = 'http:' + link_to_pdf
+        if not link_to_pdf.startswith('http:'):
+            link_to_pdf = 'http:' + link_to_pdf
+        print('Link to download the article: {}'.format(link_to_pdf))
+    except TypeError:
+        print("Error with SciHub. This paper is probably not available.")
+    except Exception as e:
+        print("Unknown error with SciHub:")
+        print(e)
 
-    print('Link to download the article: {}'.format(link_to_pdf))
 
 
 if __name__ == '__main__':
