@@ -72,7 +72,6 @@ if args['-a']:
     args['-b'] = True
     args['-d'] = True
 
-
 # Test if the input is a doi
 if target.startswith('10.'):
     is_doi = True
@@ -92,8 +91,12 @@ if is_doi and not args['-b'] and not args['-d']:
 # if ref_or_doi is a ref, find its DOI
 if not is_doi:
 
-    # First, get the form and start a session. This is necessary, posting directly
-    # the parameters doesn't work
+    if email is None:
+        print("No email provided, exiting")
+        sys.exit()
+
+    # First, get the form and start a session. This is necessary, posting
+    # directly the parameters doesn't work
     s = requests.session()
     s.get(URL_CROSSREF)
 
@@ -107,7 +110,6 @@ if not is_doi:
     # Parse the result
     strainer = SoupStrainer("td", attrs={"class": "resultB"})
     soup = BeautifulSoup(req.text, "lxml", parse_only=strainer)
-    r = soup("td", attrs={"class": "resultB"})
 
     try:
         doi = soup.a.text
@@ -117,6 +119,7 @@ if not is_doi:
         print("reftool could not get the DOI from your reference.")
         print("A possible reason is an unregistered email address.")
         print("It could also be a timeout error.")
+        print("Error: {}".format(e))
         sys.exit()
 
 
