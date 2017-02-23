@@ -52,12 +52,15 @@ import requests
 from bs4 import BeautifulSoup, SoupStrainer
 from docopt import docopt
 import validators
+import asyncio
+# import aiohttp
+from aiohttp import ClientSession
 
 
 # Define URLs
-URL_CROSSREF = "http://www.crossref.org/SimpleTextQuery/"
+URL_CROSSREF = "https://apps.crossref.org/SimpleTextQuery"
 URL_SCIHUB = "http://sci-hub.cc/"
-URL_DOI_BIB = "https://doi.org/"
+URLS_DOI_BIB = ["https://doi.org/", "http://dx.doi.org/"]
 
 # Define the user agent
 headers = {'User-agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:12.0) Gecko/20100101 Firefox/21.0'}
@@ -72,81 +75,107 @@ if args['-a']:
     args['-b'] = True
     args['-d'] = True
 
-# Test if the input is a doi
-if target.startswith('10.'):
-    is_doi = True
-    doi = target
-elif validators.url(target) and '10.1' in target:
-    doi = target.split(URL_DOI_BIB)[-1]
-    is_doi = True
-else:
-    is_doi = False
+
+def extract_doi(url_doi: str):
+
+    if validators.url(url_doi) and '10.1' in url_doi:
+        for url in URLS_DOI_BIB:
+            if url in url_doi:
+                doi = url_doi.split(url)[-1]
+                return doi
+    else:
+        return None
 
 
-if is_doi and not args['-b'] and not args['-d']:
-    print("Nothing to do, exiting")
-    sys.exit()
+def get_doi_locally(target: str):
+
+    """"Test if the input is a doi. Returns it or returns None"""
+
+    if target.startswith('10.'):
+        return target
+    elif validators.url(target) and '10.1' in target:
+        doi = extract_doi(target)
+        return doi
+    else:
+        return None
 
 
-# if ref_or_doi is a ref, find its DOI
-if not is_doi:
+def get_doi_remotely(email: str, target: str):
 
     if email is None:
         print("No email provided, exiting")
-        sys.exit()
+        return None
 
     # First, get the form and start a session. This is necessary, posting
     # directly the parameters doesn't work
     s = requests.session()
-    s.get(URL_CROSSREF)
+    s.get(URL_CROSSREF, headers=headers)
 
     payload = {'email': email,
                'command': 'Submit',
                'freetext': target}
 
     # Post the form
-    req = s.post(URL_CROSSREF, data=payload, headers=headers)
+    try:
+        req = s.post(URL_CROSSREF, data=payload, headers=headers)
+    except Exception as e:
+        print("Error contacting the server: {}".format(e))
+        return None
+
+    # with open("out.html", "w") as f:
+        # f.write(req.text)
 
     # Parse the result
     strainer = SoupStrainer("td", attrs={"class": "resultB"})
-    soup = BeautifulSoup(req.text, "lxml", parse_only=strainer)
+    soup = BeautifulSoup(req.text, "html.parser", parse_only=strainer)
 
     try:
-        doi = soup.a.text
-        doi = doi.split(URL_DOI_BIB)[-1]
-        print('DOI: {}\n'.format(doi))
+        doi = extract_doi(soup.a.text)
+        return doi
     except Exception as e:
         print("reftool could not get the DOI from your reference.")
         print("A possible reason is an unregistered email address.")
-        print("It could also be a timeout error.")
+        print("It could also be an invalid input.")
         print("Error: {}".format(e))
-        sys.exit()
+        return None
 
 
-# if option bibtex activated, request the bibtex entry
-if args['-b']:
+async def get_bibtex(doi):
+
+    """Get the bibtex entry"""
+
     headers = {"Accept": "application/x-bibtex"}
-    r = requests.get(URL_DOI_BIB + doi, headers=headers)
+    # r = await requests.get(URLS_DOI_BIB[0] + doi, headers=headers)
+    async with ClientSession() as session:
+        async with session.get(URLS_DOI_BIB[0] + doi, headers=headers) as r:
+            content = await r.text()
 
-    if "Error: DOI Not Found" in r.text:
+    # r = await aiohttp.request('GET', URLS_DOI_BIB[0] + doi, headers=headers)
+
+    if "Error: DOI Not Found" in content:
         print("DOI not found. Are you sure you didn't make a typo ?")
         print("Impossible to generate a bibtex entry\n")
     else:
-        print(r.text + "\n")
+        print(content + "\n")
 
-    headers['Accept'] = ""
+    # headers['Accept'] = ""
 
 
-# If option download is activated, request the paper from Sci-Hub
-if args['-d']:
+async def get_url_scihub(doi):
+
+    """Get the URL of the paper from Sci-Hub"""
 
     # Post the form
     payload = {'sci-hub-plugin-check': '', 'request': doi}
-    req = requests.post(URL_SCIHUB, data=payload, headers=headers)
+
+    async with ClientSession() as session:
+        async with session.post(URL_SCIHUB, data=payload, headers=headers) as r:
+            content = await r.text()
+    # req = requests.post(URL_SCIHUB, data=payload, headers=headers)
 
     # Past the result to get the link of the paper
     strainer = SoupStrainer("iframe", attrs={"id": "pdf"})
-    soup = BeautifulSoup(req.text, "lxml", parse_only=strainer)
+    soup = BeautifulSoup(content, "lxml", parse_only=strainer)
 
     try:
         link_to_pdf = soup.iframe['src']
@@ -162,5 +191,30 @@ if args['-d']:
 
 
 
+
 if __name__ == '__main__':
-    pass
+
+    doi = get_doi_locally(target)
+
+    if doi is not None and not args['-b'] and not args['-d']:
+        print("Nothing to do, exiting")
+        sys.exit()
+
+    if doi is None:
+        doi = get_doi_remotely(email, target)
+
+    print(doi)
+
+    tasks = []
+    ioloop = asyncio.get_event_loop()
+
+    if args['-b']:
+        task = asyncio.ensure_future(get_bibtex(doi))
+        tasks.append(task)
+
+    if args['-d']:
+        task = asyncio.ensure_future(get_url_scihub(doi))
+        tasks.append(task)
+
+    ioloop.run_until_complete(asyncio.wait(tasks))
+    ioloop.close()
