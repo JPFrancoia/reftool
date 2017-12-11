@@ -59,7 +59,8 @@ from aiohttp import ClientSession
 
 # Define URLs
 URL_CROSSREF = "https://apps.crossref.org/SimpleTextQuery"
-URL_SCIHUB = "http://sci-hub.cc/"
+# URL_SCIHUB = "http://sci-hub.cc/"
+URL_SCIHUB = "http://80.82.77.83/"
 URLS_DOI_BIB = ["https://doi.org/", "http://dx.doi.org/"]
 
 # Define the user agent
