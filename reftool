@@ -55,11 +55,12 @@ import validators
 import asyncio
 # import aiohttp
 from aiohttp import ClientSession
+from aiohttp import TCPConnector
 
 
 # Define URLs
 URL_CROSSREF = "https://apps.crossref.org/SimpleTextQuery"
-URL_SCIHUB = "http://sci-hub.cc/"
+URL_SCIHUB = "https://sci-hub.la"
 URLS_DOI_BIB = ["https://doi.org/", "http://dx.doi.org/"]
 
 # Define the user agent
@@ -91,7 +92,7 @@ def get_doi_locally(target: str):
 
     """"Test if the input is a doi. Returns it or returns None"""
 
-    if target.startswith('10.'):
+    if target.startswith('10.1'):
         return target
     elif validators.url(target) and '10.1' in target:
         doi = extract_doi(target)
@@ -146,7 +147,7 @@ async def get_bibtex(doi):
 
     headers = {"Accept": "application/x-bibtex"}
     # r = await requests.get(URLS_DOI_BIB[0] + doi, headers=headers)
-    async with ClientSession() as session:
+    async with ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
         async with session.get(URLS_DOI_BIB[0] + doi, headers=headers) as r:
             content = await r.text()
 
@@ -168,7 +169,7 @@ async def get_url_scihub(doi):
     # Post the form
     payload = {'sci-hub-plugin-check': '', 'request': doi}
 
-    async with ClientSession() as session:
+    async with ClientSession(connector=TCPConnector(verify_ssl=False)) as session:
         async with session.post(URL_SCIHUB, data=payload, headers=headers) as r:
             content = await r.text()
     # req = requests.post(URL_SCIHUB, data=payload, headers=headers)
