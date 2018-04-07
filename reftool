@@ -60,7 +60,7 @@ from aiohttp import TCPConnector
 
 # Define URLs
 URL_CROSSREF = "https://apps.crossref.org/SimpleTextQuery"
-URL_SCIHUB = "https://sci-hub.la"
+URL_SCIHUB = "https://sci-hub.tw/"
 URLS_DOI_BIB = ["https://doi.org/", "http://dx.doi.org/"]
 
 # Define the user agent
